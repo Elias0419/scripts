@@ -1,4 +1,3 @@
-# import re
 
 import re
 import sys
@@ -24,7 +23,7 @@ import numpy as np
 #
 # def parse_expected_output(output):
 #     try:
-#         # Attempt to parse output as a numeric value
+#        
 #         return float(output) if '.' in output else int(output)
 #     except ValueError:
 #         # If it's not a number, return the string itself
