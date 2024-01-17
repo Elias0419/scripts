@@ -1,6 +1,4 @@
-"""
-This script collects and stores system and network information. It monitors network traffic, system uptime, IP configuration, and the status of the hostapd service, saving the data in JSON format.
-"""
+
 
 import psutil
 import json
