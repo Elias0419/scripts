@@ -11,13 +11,13 @@
 # Configuration Options
 
 ETHERNET=0          # Flag to indicate if Ethernet connectivity should be used (1 for yes, 0 for no)
-EFI=0               # Flag to indicate if the system uses EFI (1 for EFI, 0 for non-EFI)
+#EFI=0               # Flag to indicate if the system uses EFI (1 for EFI, 0 for non-EFI) # Not implemented
 STATIC=0            # Flag to indicate if a static IP should be used for the WiFi connection (1 for static, 0 for DHCP)
 STATIC_IP="123.456.789.0" # The static IP address to assign if STATIC is set to 1
 WIFI_SSID="XYZ"    # The SSID of the WiFi network to connect to
 WIFI_PASSWORD="xyz" # The password for the WiFi network
 TARGET_DISK="/dev/sda"  # The disk on which the system will be installed
-#BOOT_SIZE="(2*1024*1024*1024)" # The size of the boot partition in bytes, calculated as 2 GB
+#BOOT_SIZE="(2*1024*1024*1024)" # The size of the boot partition in bytes, calculated as 2 GB # Not implemented
 HOSTNAME="x"         # The hostname to assign to the system
 TIMEZONE="America/New_York" # The timezone to configure the system to use
 LOCALE="en_US.UTF-8"        # The system locale
