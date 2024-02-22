@@ -26,7 +26,7 @@ USER_NAME="x"              # The username for the primary user account to be cre
 USER_PASSWORD="x"        # The password for the primary user account
 TOGGLE_SSH=0              # Boolean for whether we set a SSH password, 1 for true
 SSH_PASSWORD="x"           # The password to set for SSH access during installation
-HAS_RUN="/mnt/has_run"
+# HAS_RUN="/mnt/has_run" # Not implemented
 
 BREAKPOINTS=1 # Set to 1 to step through the script, 0 for fully automated
 
@@ -36,7 +36,7 @@ breakpoint() {
         read -p "$message" choice
         case "$choice" in
             [Cc]* ) break;;
-            [Qq]* ) echo "Script execution cancelled."; touch /mnt/has_run; exit 1;;
+            [Qq]* ) echo "Script execution cancelled."; exit 1;;  # touch /mnt/has_run;
             * ) echo "Please answer continue (c) or cancel (q).";;
         esac
     done
@@ -67,9 +67,10 @@ create_partitions() {
 }
 
 # check if we've run before
-if [ -e "$HAS_RUN" ]; then
-    breakpoint "We've run at least once before. Press c to continue anyway or q to quit. If you're here after a successful install, type q to quit, then type reboot to restart the machine, and be sure to remove the installation medium."
-fi
+# if [ -e "$HAS_RUN" ]; then
+#     breakpoint "Has run"
+# fi
+
 # if we need ssh during install we need to set a root password
 # this is not the password for the installed system, just for the installer
 # sshd runs by default in the arch installer so no need to start it
@@ -180,6 +181,8 @@ if [ "$BREAKPOINTS" -eq 1 ]; then
     breakpoint "Installation is complete, continue (c) to reboot or cancel (q) for further manual configuration."
 fi
 #Custom setup goes here
-touch /mnt/has_run
+
+#touch /mnt/has_run
+
 reboot
 
