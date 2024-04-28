@@ -74,7 +74,7 @@ create_partitions() {
 # if we need ssh during install we need to set a root password
 # this is not the password for the installed system, just for the installer
 # sshd runs by default in the arch installer so no need to start it
-if [ "$SSH_TOGGLE" -eq 1 ]; then
+if [ "$TOGGLE_SSH" -eq 1 ]; then
     echo -e "$SSH_PASSWORD\n$SSH_PASSWORD" | passwd
 fi
 
