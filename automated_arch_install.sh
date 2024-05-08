@@ -2,6 +2,7 @@
 
 # This script automatically installs arch linux. It's very simple and only works for rather specific situations.
 # I inject the script into the installer with Archiso https://wiki.archlinux.org/title/archiso
+# I also install networkmanager in the iso so I can use nmcli commands
 # I put it in releng/airootfs/root and chmod +x and add a call to the script in .bash_profile
 
 I̶ t̶h̶i̶n̶k̶ t̶h̶a̶t̶'s̶ a̶l̶l̶ t̶h̶a̶t̶'s̶ n̶e̶c̶e̶s̶s̶a̶r̶y̶ d̶u̶e̶ t̶o̶ t̶h̶e̶ p̶r̶e̶s̶e̶n̶c̶e̶ o̶f̶ .a̶u̶t̶o̶m̶a̶t̶e̶d̶_̶s̶c̶r̶i̶p̶t̶.s̶h̶ i̶n̶ t̶h̶e̶r̶e̶ 
@@ -49,15 +50,13 @@ breakpoint() {
 create_partitions() {
 
         local device=$TARGET_DISK
-        # this is 2 gigs for /boot. the idea is to have plenty of room for activities https://www.youtube.com/watch?v=29jij4ldkNs
-        # and the system should not need manual intervention in the future, so we just leave leg room
+        # this is 2 gigs for /boot. 
         local boot_part=$((2*1024*1024*1024))
         local total_size_bytes=$(cat /sys/block/${device##*/}/size)
         local sector_size=$(cat /sys/block/${device##*/}/queue/hw_sector_size)
         local total_size=$((total_size_bytes*sector_size))
         local remaining_size=$((total_size - boot_part))
-        # same thing with the 50/50 partition scheme. I don't want journalctl or pacman cache to fill up /
-        # leaving an unusable system, so again, plenty of leg room
+   
         local half_remaining=$((remaining_size / 2))
         local boot_part_sectors=$((boot_part / sector_size))
         local half_remaining_sectors=$((half_remaining / sector_size))
@@ -66,7 +65,7 @@ create_partitions() {
         echo ",${boot_part_sectors},L"
         echo ",${half_remaining_sectors},L"
         echo ",,L"
-        ) | sfdisk $device
+        ) | sfdisk $device # write the partitions
 
 }
 
@@ -134,7 +133,7 @@ mkfs.ext4 -F /dev/sda1
 mkfs.ext4 -F /dev/sda2
 mkfs.ext4 -F /dev/sda3
 
-# mount paritions
+# mount partitions
 mount /dev/sda2 /mnt
 mkdir /mnt/boot
 mkdir /mnt/home
@@ -146,7 +145,7 @@ pacstrap /mnt base linux linux-firmware xorg networkmanager xorg-server sddm lxq
 
 # The archwiki uses this command genfstab -U /mnt >> /mnt/etc/fstab
 # I found it to be unreliable for automated installs
-# So we write fstab manually
+# So I write fstab manually
 
 echo "/dev/sda1 /boot ext4 defaults 0 2" >> /mnt/etc/fstab
 echo "/dev/sda2 / ext4 defaults 0 1" >> /mnt/etc/fstab
