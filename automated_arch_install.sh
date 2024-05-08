@@ -1,9 +1,13 @@
 #!/bin/bash
 
 # This script automatically installs arch linux. It's very simple and only works for rather specific situations.
-# I inject the script into the installer with archiso https://wiki.archlinux.org/title/archiso
-# I put it in releng/airootfs/root and chmod +x it. I think that's all that's necessary due to the presence of .automated_script.sh in there
-# If it doesn't work for some reason, you can add a call to the script in .bash_profile in the image
+# I inject the script into the installer with Archiso https://wiki.archlinux.org/title/archiso
+# I put it in releng/airootfs/root and chmod +x and add a call to the script in .bash_profile
+
+I̶ t̶h̶i̶n̶k̶ t̶h̶a̶t̶'s̶ a̶l̶l̶ t̶h̶a̶t̶'s̶ n̶e̶c̶e̶s̶s̶a̶r̶y̶ d̶u̶e̶ t̶o̶ t̶h̶e̶ p̶r̶e̶s̶e̶n̶c̶e̶ o̶f̶ .a̶u̶t̶o̶m̶a̶t̶e̶d̶_̶s̶c̶r̶i̶p̶t̶.s̶h̶ i̶n̶ t̶h̶e̶r̶e̶ 
+I̶f̶ i̶t̶ d̶o̶e̶s̶n̶'t̶ w̶o̶r̶k̶ f̶o̶r̶ s̶o̶m̶e̶ r̶e̶a̶s̶o̶n̶, y̶o̶u̶ c̶a̶n̶ (this is actually used with the script= kernel paramenter)
+
+
 # I use syslinux here because that's what I know and prefer
 # This is designed to be used for a kiosk system, so I just do simple 50/50 partitioning for / and /home
 # If you run this as-is without breakpoints enabled it will wipe /dev/sda without warning, so be careful
