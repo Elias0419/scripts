@@ -34,7 +34,7 @@ SSH_PASSWORD="x"           # The password to set for SSH access during installat
 SERVICE_FILE="/mnt/etc/systemd/system/installer_run_once.service"
 # HAS_RUN="/mnt/has_run" # Not implemented
 
-BREAKPOINTS=0 # Set to 1 to step through the script, 0 for fully automated
+BREAKPOINTS=1 # Set to 1 to step through the script, 0 for fully automated
 
 if [ "$BREAKPOINTS" -eq 0 ]; then
     read -p "WARNING: We are in fully automatic mode! If you don't know why you're here or what you're doing, say no! Continue? (yes/no): " confirm
@@ -149,7 +149,10 @@ mount /dev/sda3 /mnt/home
 
 # install the system
 pacstrap /mnt base linux linux-firmware xorg networkmanager xorg-server sddm lxqt breeze-icons syslinux gptfdisk sudo xorg-xinit
-
+if [ "$BREAKPOINTS" -eq 0 ]; then
+    read -p "test: " confirm
+    [[ $confirm != "yes" ]] && exit 1
+fi
 # The archwiki uses this command genfstab -U /mnt >> /mnt/etc/fstab
 # I found it to be unreliable for automated installs
 # So I write fstab manually
