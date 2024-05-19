@@ -27,7 +27,7 @@ HOSTNAME="x"         # The hostname to assign to the system
 TIMEZONE="America/New_York" # timezone
 LOCALE="en_US.UTF-8"        # locale
 ROOT_PASSWORD="x"          # The root password
-USER_NAME="x"              # The username for the primary user account to be created
+USER_NAME="rigs"              # The username for the primary user account to be created
 USER_PASSWORD="x"        # The password for the primary user account
 TOGGLE_SSH=0              # Boolean for whether we set a SSH password, 1 for true
 SSH_PASSWORD="x"           # The password to set for SSH access during installation
@@ -167,6 +167,7 @@ if [ "$BREAKPOINTS" -eq 1 ]; then
 fi
 
 # copy network stuff to the installed system
+mkdir -p /mnt/etc/NetworkManager/system-connections
 
     cat <<EOF > /mnt/etc/NetworkManager/system-connections/$ssid.nmconnection
 [connection]
