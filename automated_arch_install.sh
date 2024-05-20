@@ -1,17 +1,14 @@
 #!/bin/bash
 
-# This script automatically installs arch linux. It's very simple and only works for rather specific situations.
-# I inject the script into the installer with Archiso https://wiki.archlinux.org/title/archiso
-# I also install networkmanager in the iso so I can use nmcli commands
-# I put it in releng/airootfs/root and chmod +x and add a call to the script in .bash_profile
+# This script automates the installation of Arch Linux
+# The script is integrated into the installer using Archiso (https://wiki.archlinux.org/title/archiso)
+# It requires NetworkManager in the the ISO to enable nmcli commands
+# The script is stored in releng/airootfs/root, made executable, and invoked via the 'script=' kernel command line parameter in releng/syslinux/archiso_sys-linux.cfg
+# Syslinux is used for booting because its simple and I like it
+# This script is tailored specifically for my point of sale, but could be modified for other simple kiosk installations
 
-I̶ t̶h̶i̶n̶k̶ t̶h̶a̶t̶'s̶ a̶l̶l̶ t̶h̶a̶t̶'s̶ n̶e̶c̶e̶s̶s̶a̶r̶y̶ d̶u̶e̶ t̶o̶ t̶h̶e̶ p̶r̶e̶s̶e̶n̶c̶e̶ o̶f̶ .a̶u̶t̶o̶m̶a̶t̶e̶d̶_̶s̶c̶r̶i̶p̶t̶.s̶h̶ i̶n̶ t̶h̶e̶r̶e̶
-I̶f̶ i̶t̶ d̶o̶e̶s̶n̶'t̶ w̶o̶r̶k̶ f̶o̶r̶ s̶o̶m̶e̶ r̶e̶a̶s̶o̶n̶, y̶o̶u̶ c̶a̶n̶ (this is actually used with the script= kernel paramenter)
+# Warning: Running this script with breakpoints disabled will erase /dev/sda without warning
 
-
-# I use syslinux here because that's what I know and prefer
-# This is designed to be used for a kiosk system, so I just do simple 50/50 partitioning for / and /home
-# If you run this as-is without breakpoints enabled it will wipe /dev/sda without warning, so be careful
 
 # Configuration Options
 
@@ -22,19 +19,18 @@ STATIC_IP="123.456.789.0" # The static IP address to assign if STATIC is set to 
 WIFI_SSID="XYZ"    # The SSID of the wifi network to connect to
 WIFI_PASSWORD="xyz" # The password for the wifi network
 TARGET_DISK="/dev/sda"  # The disk on which the system will be installed
-#BOOT_SIZE="(2*1024*1024*1024)" # Not implemented
 HOSTNAME="x"         # The hostname to assign to the system
 TIMEZONE="America/New_York" # timezone
 LOCALE="en_US.UTF-8"        # locale
 ROOT_PASSWORD="x"          # The root password
-USER_NAME="rigs"              # The username for the primary user account to be created
+USER_NAME="x"              # The username for the primary user account to be created
 USER_PASSWORD="x"        # The password for the primary user account
 TOGGLE_SSH=0              # Boolean for whether we set a SSH password, 1 for true
 SSH_PASSWORD="x"           # The password to set for SSH access during installation
 SERVICE_FILE="/mnt/etc/systemd/system/installer_run_once.service"
-# HAS_RUN="/mnt/has_run" # Not implemented
+HAS_RUN="/has_run"
 
-BREAKPOINTS=1 # Set to 1 to step through the script, 0 for fully automated
+BREAKPOINTS=0 # Set to 1 to step through the script, 0 for fully automated
 
 if [ "$BREAKPOINTS" -eq 0 ]; then
     read -p "WARNING: We are in fully automatic mode! If you don't know why you're here or what you're doing, say no! Continue? (yes/no): " confirm
@@ -77,13 +73,22 @@ create_partitions() {
 }
 
 # check if we've run before
-# if [ -e "$HAS_RUN" ]; then
-#     breakpoint "Has run"
-# fi
+if mount /dev/sda2 /mnt; then
+
+    if [ -f /mnt"$HAS_RUN" ]; then
+        echo "Installation already completed."
+        echo "Please press ENTER to reboot and remove the installation medium."
+        read -p ""
+        umount /mnt
+        reboot
+        exit 0
+    fi
+    umount /mnt
+
+fi
 
 # if we need ssh during install we need to set a root password
-# this is not the password for the installed system, just for the installer
-# sshd runs by default in the arch installer so no need to start it
+# (this is only for the installer, the installed system will use $ROOT_PASSWORD)
 if [ "$TOGGLE_SSH" -eq 1 ]; then
     echo -e "$SSH_PASSWORD\n$SSH_PASSWORD" | passwd
 fi
@@ -91,23 +96,19 @@ fi
 # connect to the internet
 if [ "$ETHERNET" -eq 1 ]; then
     # Ethernet probably "just works"
-    echo "Ethernet mode selected, skipping wifi setup."
+    echo ""
 else
     # Detect wifi adapter. The regex seems pretty reliable, but I haven't tested it thoroughly
     wifi_adapter=$(ip addr | grep -Eo 'wlan[0-9]|wlp[0-9]s[0-9]|wlx[[:xdigit:]]{12}' | head -n 1)
 
-
     ssid=$WIFI_SSID
     wifi_password=$WIFI_PASSWORD
-
 
     systemctl start NetworkManager.service
     sleep 5
 
-
     nmcli device wifi rescan
     sleep 5
-
 
     nmcli dev wifi connect "$ssid" password "$wifi_password" ifname "$wifi_adapter"
 fi
@@ -120,9 +121,6 @@ if [ "$STATIC" -eq 1 ]; then
     sleep 5
     nmcli con up "$ssid"
 fi
-
-
-
 
 if [ "$BREAKPOINTS" -eq 1 ]; then
  breakpoint "At this point we are connected to the internet and ssh is ready. Exit the script now (q) to do a manual installation or press c to continue"
@@ -151,14 +149,8 @@ mount /dev/sda3 /mnt/home
 yes | pacman-key --init
 yes | pacman-key --populate archlinux
 pacstrap /mnt base linux linux-firmware xorg networkmanager xorg-server sddm lxqt breeze-icons syslinux gptfdisk sudo xorg-xinit
-if [ "$BREAKPOINTS" -eq 0 ]; then
-    read -p "test: " confirm
-    [[ $confirm != "yes" ]] && exit 1
-fi
-# The archwiki uses this command genfstab -U /mnt >> /mnt/etc/fstab
-# I found it to be unreliable for automated installs
-# So I write fstab manually
 
+# fstab is written manually because genfstab is not reliable
 echo "/dev/sda1 /boot ext4 defaults 0 2" >> /mnt/etc/fstab
 echo "/dev/sda2 / ext4 defaults 0 1" >> /mnt/etc/fstab
 echo "/dev/sda3 /home ext4 defaults 0 2" >> /mnt/etc/fstab
@@ -202,7 +194,6 @@ chmod 600 /mnt/etc/NetworkManager/system-connections/$ssid.nmconnection
 # set up the rigs installer to run on the next boot
 cp /root/rigs_pos_installer.sh /mnt/home
 chmod +x /mnt/home/rigs_pos_installer.sh
-
     cat <<EOF > $SERVICE_FILE
 [Unit]
 Description=Run Once Installation Task
@@ -212,6 +203,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 ExecStartPre=/usr/bin/sleep 10
+
 ExecStart=/home/rigs_pos_installer.sh
 RemainAfterExit=yes
 
@@ -246,8 +238,6 @@ if [ "$BREAKPOINTS" -eq 1 ]; then
     breakpoint "Installation is complete, continue (c) to reboot or cancel (q) for further manual configuration."
 fi
 
-#Custom setup goes here
-
-#touch /mnt/has_run
+touch "$HAS_RUN"
 
 reboot
