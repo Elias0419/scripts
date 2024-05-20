@@ -242,6 +242,6 @@ if [ "$BREAKPOINTS" -eq 1 ]; then
     breakpoint "Installation is complete, continue (c) to reboot or cancel (q) for further manual configuration."
 fi
 
-touch "$HAS_RUN"
+touch /mnt"$HAS_RUN"
 
 reboot
