@@ -146,9 +146,10 @@ mkdir /mnt/boot
 mkdir /mnt/home
 mount /dev/sda1 /mnt/boot
 mount /dev/sda3 /mnt/home
+
+# install the system
 yes | pacman-key --init
 yes | pacman-key --populate archlinux
-# install the system
 pacstrap /mnt base linux linux-firmware xorg networkmanager xorg-server sddm lxqt breeze-icons syslinux gptfdisk sudo xorg-xinit
 if [ "$BREAKPOINTS" -eq 0 ]; then
     read -p "test: " confirm
@@ -200,6 +201,7 @@ chmod 600 /mnt/etc/NetworkManager/system-connections/$ssid.nmconnection
 
 # set up the rigs installer to run on the next boot
 cp /root/rigs_pos_installer.sh /mnt/home
+chmod +x /mnt/home/rigs_pos_installer.sh
 
     cat <<EOF > $SERVICE_FILE
 [Unit]
