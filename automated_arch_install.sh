@@ -211,6 +211,7 @@ After=network-online.target
 
 [Service]
 Type=oneshot
+ExecStartPre=/usr/bin/sleep 10
 ExecStart=/home/rigs_pos_installer.sh
 RemainAfterExit=yes
 
