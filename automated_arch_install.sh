@@ -146,7 +146,8 @@ mkdir /mnt/boot
 mkdir /mnt/home
 mount /dev/sda1 /mnt/boot
 mount /dev/sda3 /mnt/home
-
+yes | pacman-key --init
+yes | pacman-key --populate archlinux
 # install the system
 pacstrap /mnt base linux linux-firmware xorg networkmanager xorg-server sddm lxqt breeze-icons syslinux gptfdisk sudo xorg-xinit
 if [ "$BREAKPOINTS" -eq 0 ]; then
