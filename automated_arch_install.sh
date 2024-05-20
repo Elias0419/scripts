@@ -32,10 +32,10 @@ HAS_RUN="/has_run"
 
 BREAKPOINTS=0 # Set to 1 to step through the script, 0 for fully automated
 
-if [ "$BREAKPOINTS" -eq 0 ]; then
-    read -p "WARNING: We are in fully automatic mode! If you don't know why you're here or what you're doing, say no! Continue? (yes/no): " confirm
-    [[ $confirm != "yes" ]] && exit 1
-fi
+# if [ "$BREAKPOINTS" -eq 0 ]; then
+#     read -p "WARNING: We are in fully automatic mode! If you don't know why you're here or what you're doing, say no! Continue? (yes/no): " confirm
+#     [[ $confirm != "yes" ]] && exit 1
+# fi
 
 
 breakpoint() {
@@ -163,6 +163,9 @@ if [ "$BREAKPOINTS" -eq 1 ]; then
  breakpoint "At this point the system is installed, without a bootloader or basic configuration. The next part does those things. Exit now (q) to do this part manually or c to continue. "
 fi
 
+# get the mac address
+mac_address=$(ip link show $wifi_adapter | grep -Po 'link/ether \K[^ ]+')
+
 # copy network stuff to the installed system
 mkdir -p /mnt/etc/NetworkManager/system-connections
 
@@ -170,7 +173,7 @@ mkdir -p /mnt/etc/NetworkManager/system-connections
 [connection]
 id=$ssid
 type=wifi
-interface-name=$wifi_adapter
+mac-address=$mac_address
 permissions=
 
 [wifi]
@@ -187,6 +190,7 @@ method=auto
 [ipv6]
 method=auto
 EOF
+
 
 
 chmod 600 /mnt/etc/NetworkManager/system-connections/$ssid.nmconnection
