@@ -206,6 +206,8 @@ chmod +x /mnt/home/rigs_pos_installer.sh
     cat <<EOF > $SERVICE_FILE
 [Unit]
 Description=Run Once Installation Task
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=oneshot
