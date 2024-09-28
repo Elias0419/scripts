@@ -7,6 +7,8 @@
 # Syslinux is used for booting because its simple and I like it
 # This script is tailored specifically for my point of sale, but could be modified for other simple kiosk installations
 
+# This script is released into the public domain. Use it however you want.
+
 # Warning: Running this script as-is will erase /dev/sda without warning. Make sure you know what you're doing.
 
 
