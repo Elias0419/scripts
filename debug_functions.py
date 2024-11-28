@@ -3,6 +3,46 @@ import inspect
 import pickle
 import datetime
 
+##############################################
+import inspect
+from pprint import pprint
+
+def inspect_class(class_to_inspect, less=True):
+    if not isinstance(class_to_inspect, type):
+        print(f"{class_to_inspect} is not a Python Class")
+        return
+    instance = class_to_inspect()
+    print(f"\nInspecting class: {class_to_inspect.__name__}\n")
+    if less:
+        print("Pass `less=False` for more details.\n")
+
+    print("Init Signature:")
+    print(f"  {inspect.signature(class_to_inspect.__init__)}\n")
+
+    print("Class-level attributes:")
+    class_attrs = {name: value for name, value in class_to_inspect.__dict__.items()}
+    if class_attrs:
+        for name, value in class_attrs.items():
+            print(f"  {name} = {value}")
+    else:
+        print("  None")
+
+    if not less:
+        print("\nInstance-level attributes:")
+        instance_attrs = vars(instance)
+        if instance_attrs:
+            for name, value in instance_attrs.items():
+                print(f"  {name} = {value}")
+        else:
+            print("  None")
+
+        print("\nAll attributes and methods:")
+        all_members = [name for name, _ in inspect.getmembers(class_to_inspect)]
+        for name in all_members:
+            print(f"  {name}")
+
+#################################################
+
 
 def is_pickleable(obj, depth=0):
     try:
