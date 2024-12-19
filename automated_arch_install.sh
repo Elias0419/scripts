@@ -10,8 +10,8 @@
 #
 # WARNING:
 #   Running this script as-is will erase the contents of the specified target 
-#   disk (/dev/sda by default) without prompting. Ensure you know what 
-#   you're doing and have appropriate backups.
+#   disk (/dev/sda by default) without prompting (except when errors occur and 
+#   intervention is required).
 #
 # REQUIREMENTS:
 #   - Archiso environment with NetworkManager and nmcli available.
@@ -31,7 +31,7 @@ ETHERNET=0                 # Use Ethernet during install (0 = No, 1 = Yes)
 STATIC=0                   # Use static IP (0 = No, 1 = Yes)
 STATIC_IP="123.456.789.0"  # Static IP address (if STATIC=1)
 WIFI_SSID="XYZ"            # WiFi SSID
-WIFI_PASSWORD="xyz"        # WiFi Password
+WIFI_PASSWORD="xyz"         # WiFi Password
 TARGET_DISK="/dev/sda"     # Target disk for installation
 HOSTNAME="x"               # Hostname
 TIMEZONE="America/New_York"# Timezone
@@ -45,34 +45,28 @@ SERVICE_FILE="/mnt/etc/systemd/system/installer_run_once.service"
 HAS_RUN="/has_run"
 
 ###############################################################################
-# Safety Checks
-###############################################################################
-
-# Ensure the script is run as root
-if [[ $EUID -ne 0 ]]; then
-    echo "ERROR: This script must be run as root." >&2
-    exit 1
-fi
-
-# Check if required commands are available
-for cmd in sfdisk mkfs.ext4 mount umount pacstrap arch-chroot nmcli ip; do
-    if ! command -v "$cmd" &>/dev/null; then
-        echo "ERROR: '$cmd' is not available. Please ensure it's installed." >&2
-        exit 1
-    fi
-done
-
-# Check that the target disk exists
-if [[ ! -b "$TARGET_DISK" ]]; then
-    echo "ERROR: Target disk $TARGET_DISK does not exist or is not a block device." >&2
-    exit 1
-fi
-
-###############################################################################
 # Functions
 ###############################################################################
 
-# Simple breakpoint function for debugging if needed
+# Function to prompt the user to either continue after fixing an issue or quit.
+pause_for_intervention() {
+    local errmsg="$1"
+    echo ""
+    echo "ERROR: $errmsg"
+    echo "You can now switch to another TTY to fix the problem."
+    echo "Once you've addressed the issue, return here and press [C] to continue."
+    echo "Press [Q] to quit if you cannot resolve the issue."
+    while true; do
+        read -rp "[C/Q]: " choice
+        case "$choice" in
+            [Cc]* ) break;;
+            [Qq]* ) echo "Quitting the script."; exit 1;;
+            * ) echo "Please answer C to continue or Q to quit.";;
+        esac
+    done
+}
+
+# Simple breakpoint function if needed for debugging
 breakpoint() {
     local message="$1"
     while true; do
@@ -86,12 +80,8 @@ breakpoint() {
 }
 
 create_partitions() {
-    # This creates 3 partitions:
-    #   1: /boot (2 GiB)
-    #   2: / (half of the remaining space)
-    #   3: /home (remaining space)
     local device="$TARGET_DISK"
-    local boot_size=$((2*1024*1024*1024))  # 2GiB in bytes
+    local boot_size=$((2*1024*1024*1024))  # 2GiB
     local total_size_bytes
     local sector_size
     local total_size
@@ -108,8 +98,6 @@ create_partitions() {
     boot_part_sectors=$((boot_size / sector_size))
     half_remaining_sectors=$((half_remaining / sector_size))
 
-    # Using sfdisk to partition
-    
     (
         echo ",${boot_part_sectors},L"
         echo ",${half_remaining_sectors},L"
@@ -146,7 +134,6 @@ write_fstab() {
 }
 
 check_first_run() {
-    # If /mnt/has_run exists, we consider installation done and reboot
     if mount "${TARGET_DISK}2" /mnt; then
         if [[ -f "/mnt$HAS_RUN" ]]; then
             echo "Installation already completed."
@@ -171,29 +158,42 @@ connect_to_the_internet() {
     sleep 5
 
     if [[ "$ETHERNET" -eq 1 ]]; then
-        # Ethernet likely just works if cable is connected and DHCP is enabled
         echo "Using Ethernet for network connectivity."
+        # Ethernet usually just works if cable and DHCP are set
+        # If it doesn't, allow intervention
+        if ! nmcli con show --active | grep -q ethernet; then
+            pause_for_intervention "No active Ethernet connection detected."
+        fi
     else
-        # Detect a WiFi adapter
         wifi_adapter=$(ip addr | grep -Eo 'wlan[0-9]|wlp[0-9]s[0-9]|wlx[[:xdigit:]]{12}' | head -n 1)
         if [[ -z "$wifi_adapter" ]]; then
-            echo "ERROR: No WiFi adapter detected." >&2
-            exit 1
+            pause_for_intervention "No WiFi adapter detected."
         fi
 
-        # Attempt to connect to WiFi
-        nmcli device wifi rescan
+        nmcli device wifi rescan || true
         sleep 5
-        nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" ifname "$wifi_adapter" || {
-            echo "ERROR: Failed to connect to WiFi network '$WIFI_SSID'." >&2
-            exit 1
-        }
+
+        if ! nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" ifname "$wifi_adapter"; then
+            pause_for_intervention "Failed to connect to WiFi network '$WIFI_SSID'."
+            # After intervention, try again:
+            nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" ifname "$wifi_adapter" || {
+                echo "Still unable to connect to WiFi after intervention. Exiting."
+                exit 1
+            }
+        fi
 
         if [[ "$STATIC" -eq 1 ]]; then
             nmcli con mod "$WIFI_SSID" ipv4.addresses "$STATIC_IP"/24 ipv4.method manual
             systemctl restart NetworkManager.service
             sleep 5
-            nmcli con up "$WIFI_SSID"
+            if ! nmcli con up "$WIFI_SSID"; then
+                pause_for_intervention "Failed to bring up static IP connection '$WIFI_SSID'."
+                # Try again after intervention
+                nmcli con up "$WIFI_SSID" || {
+                    echo "Still unable to bring up static IP connection after intervention. Exiting."
+                    exit 1
+                }
+            fi
         fi
 
         # Retrieve MAC address
@@ -234,7 +234,7 @@ write_hostname_and_timezone() {
 
 write_rigs_installer() {
     if [[ ! -f /root/rigs_pos_installer.sh ]]; then
-        echo "WARNING: /root/rigs_pos_installer.sh not found. System will install without it."
+        echo "WARNING: /root/rigs_pos_installer.sh not found. The run-once service will still be created but won't run the installer."
     else
         cp /root/rigs_pos_installer.sh /mnt/home
         chmod +x /mnt/home/rigs_pos_installer.sh
@@ -286,6 +286,22 @@ EOF
 ###############################################################################
 # Main Script Execution
 ###############################################################################
+
+# Safety checks
+if [[ $EUID -ne 0 ]]; then
+    echo "ERROR: This script must be run as root." >&2
+    exit 1
+fi
+
+for cmd in sfdisk mkfs.ext4 mount umount pacstrap arch-chroot nmcli ip; do
+    if ! command -v "$cmd" &>/dev/null; then
+        pause_for_intervention "'$cmd' is not available. Install it or fix your environment."
+    fi
+done
+
+if [[ ! -b "$TARGET_DISK" ]]; then
+    pause_for_intervention "Target disk $TARGET_DISK does not exist or is not a block device."
+fi
 
 check_first_run
 create_partitions
