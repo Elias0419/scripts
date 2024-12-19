@@ -109,7 +109,7 @@ create_partitions() {
     half_remaining_sectors=$((half_remaining / sector_size))
 
     # Using sfdisk to partition
-    # Type "L" implies a Linux partition (0x83)
+    
     (
         echo ",${boot_part_sectors},L"
         echo ",${half_remaining_sectors},L"
