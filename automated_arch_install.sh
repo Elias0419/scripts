@@ -10,18 +10,7 @@
 #
 # WARNING:
 #   Running this script as-is will erase the contents of the specified target 
-#   disk (/dev/sda by default) without prompting (except when errors occur and 
-#   intervention is required).
-#
-# REQUIREMENTS:
-#   - Archiso environment with NetworkManager and nmcli available.
-#   - Run as root.
-#
-# DISCLAIMER:
-#   This script is released into the public domain. Use it at your own risk.
-#
-# CONFIGURATION:
-#   Adjust the variables in the "Configuration Options" section as needed.
+#   disk (/dev/sda by default) without prompting
 ###############################################################################
 
 set -euo pipefail
@@ -159,7 +148,7 @@ connect_to_the_internet() {
 
     if [[ "$ETHERNET" -eq 1 ]]; then
         echo "Using Ethernet for network connectivity."
-        # Ethernet usually just works if cable and DHCP are set
+        # Ethernet usually just works
         # If it doesn't, allow intervention
         if ! nmcli con show --active | grep -q ethernet; then
             pause_for_intervention "No active Ethernet connection detected."
