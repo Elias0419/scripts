@@ -34,9 +34,32 @@ normalize_version() {
     echo "$version" | sed -E 's/\.0(-rc)/\1/'
 }
 
+update() {
+    local sync=false
+    while [[ "$1" != "" ]]; do
+        case $1 in
+            -s|--sync)
+                sync=true
+                ;;
+            *)
+                echo "[ -s | --sync ]"
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    if [ "$sync" = true ]; then
+        emaint --auto sync || return 1
+
+    fi
+    emerge -auvDN @world || return 1
+    check_kernel_version
+}
+
 check_kernel_version() {
     running_version=$(uname -r | sed 's/-[^-]*$//')
-    releases_json=$(curl -s https://kernel.org/releases.json)
+    releases_json=$(curl -s https://kernel.org/releases.json) || { echo "Failed to fetch releases.json from kernel.org"; return 1; }
     mainline_version=$(echo "$releases_json" | jq -r '.releases[] | select(.moniker=="mainline") | .version')
     norm_running=$(normalize_version "$running_version")
     norm_mainline=$(normalize_version "$mainline_version")
@@ -58,7 +81,15 @@ get_kernel() {
     echo "Downloading: $archive_url"
     curl -LO "$archive_url" || { echo "Download failed"; return 1; }
     tar -xf "$archive_file" -C /usr/src || { echo "Extraction failed"; return 1; }
-    kernel_dir="${archive_file%.tar.gz}"
+
+    if [[ "$archive_file" == *.tar.gz ]]; then
+        kernel_dir="${archive_file%.tar.gz}"
+    elif [[ "$archive_file" == *.tar.xz ]]; then
+        kernel_dir="${archive_file%.tar.xz}"
+    else
+        kernel_dir="${archive_file%.*}"
+    fi
+
     ln -sfn "/usr/src/$kernel_dir" /usr/src/linux || { echo "Symlink failed"; return 1; }
     kernel_update
 }
@@ -84,42 +115,7 @@ kernel_update() {
     esac
 }
 
-update() {
-    local force=false
-    while [[ "$1" != "" ]]; do
-        case $1 in
-            -f|--force)
-                force=true
-                ;;
-            *)
-                echo "[ -f | --force ]"
-                return 1
-                ;;
-        esac
-        shift
-    done
 
-    local lockfile="/root/.last_sync"
-    local now=$(date +%s)
-    local sync_needed=true
-
-    if [ -f "$lockfile" ] && [ "$force" = false ]; then
-        local last_sync
-        last_sync=$(stat -c %Y "$lockfile")
-        local diff=$(( now - last_sync ))
-        if [ $diff -lt 86400 ]; then
-            sync_needed=false
-            echo "Skipping sync."
-        fi
-    fi
-
-    if [ "$sync_needed" = true ]; then
-        emaint --auto sync
-        touch "$lockfile"
-    fi
-    emerge -auvDN @world
-    check_kernel_version
-}
 
 # Plugins
 source /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh
