@@ -10,7 +10,6 @@ export PATH="$PATH:/home/x/.dotnet/tools/"
 export PATH="$PATH:$(go env GOPATH)/bin"
 export PATH="$PATH:/usr/local/lib64/ruby/gems/3.2.0/bin"
 export QT_QPA_PLATFORMTHEME=qt5ct
-export PYTHONSTARTUP=$HOME/.pythonrc.py
 
 # Ruby Configuration
 export GEM_HOME=/usr/local/lib64/ruby/gems/3.2.0
@@ -31,9 +30,15 @@ runas() {
 
 normalize_version() {
     version="$1"
-    echo "$version" | sed -E 's/\.0(-rc)/\1/'
+    numeric=$(echo "$version" | cut -d'-' -f1)
+    suffix=$(echo "$version" | cut -s -d'-' -f2-)
+    numeric=$(echo "$numeric" | sed -E 's/(\.0)+$//')
+    if [ -n "$suffix" ]; then
+        echo "$numeric-$suffix"
+    else
+        echo "$numeric"
+    fi
 }
-
 update() {
     local sync=false
     while [[ "$1" != "" ]]; do
