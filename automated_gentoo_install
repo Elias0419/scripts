@@ -1,0 +1,58 @@
+boot="/dev/nvme0n1p1"
+root="/dev/nvme0n1p2"
+ssid="ssid"
+wifi_password="password"
+root_password="password"
+device="/dev/nvme0n1" 
+kernel_conf="https://raw.githubusercontent.com/Elias0419/scripts/refs/heads/main/kernel_config_p14s"
+kernel_conf_filename="kernel_config_p14s"
+stage="https://gentoo.osuosl.org/releases/amd64/autobuilds/current-stage3-amd64-desktop-openrc/stage3-amd64-desktop-openrc-20250406T165023Z.tar.xz"
+boot_size=$((1*1024*1024*1024))
+dev=${device##*/}
+sector_size=$(cat /sys/block/"$dev"/queue/logical_block_size)
+total_size=$(cat /sys/block/"$dev"/size)
+boot_part=$(( boot_size / sector_size ))
+remaining=$(( total_size - boot_part ))
+(
+    echo ",${boot_part},L"
+    echo ",${remaining},L"
+) | sfdisk "$device"
+mkfs.vfat -F 32 $boot
+mkfs.ext4 $root
+mkdir /mnt/gentoo
+mount /dev/nvme0n1p2 /mnt/gentoo
+nmcli dev wifi connect $ssid password $wifi_password
+wget $stage
+tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner -C /mnt/gentoo
+cp -d /etc/resolv.conf /mnt/gentoo/etc/
+arch-chroot /mnt/gentoo /bin/bash <<EOF
+    echo 'FEATURES="${FEATURES} getbinpkg"' >> /etc/portage/make.conf
+    echo 'ACCEPT_LICENSE="*"' >> /etc/portage/make.conf
+    ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime
+    rm /etc/locale.gen
+    touch /etc/locale.gen
+    echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+    locale-gen
+    echo "sys-kernel/gentoo-sources symlink" > /etc/portage/package.use/gentoo-sources
+    emerge gentoo-sources
+    wget $kernel_conf
+    cp $kernel_conf_filename /usr/src/linux/.config
+    cd /usr/src/linux
+    make oldconfig
+    make -j13
+    mount $boot /boot
+    cp /usr/src/linux/arch/x86/boot/bzImage /boot/bzImage.efi
+    emerge efibootmgr
+    efibootmgr -c -d $device -p 1 -L "gentoo" -l '\bzImage.efi' -u "root=${root}"
+    echo -e "$root_password\n$root_password" | passwd root
+EOF
+echo -n "Installation complete. Reboot now? (y/N): "
+read response
+case "$response" in
+    [yY][eE][sS]|[yY])
+        reboot
+        ;;
+    *)
+        echo "Exiting..."
+        ;;
+esac
