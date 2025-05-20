@@ -1,32 +1,75 @@
-# Oh My Zsh Setup
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="spaceship"
-plugins=(python)
+export PROMPT='%F{red}%n@%F{cyan}%/%f %F{green}~ %f'
+HISTFILE=~/.zsh_history
+HISTSIZE=100000
+SAVEHIST=10000
+setopt SHARE_HISTORY
 
-source $ZSH/oh-my-zsh.sh
+export PATH=$PATH:/opt:/usr/go/bin:/usr/local/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64
+export PKG_CONFIG_PATH="/usr/lib64/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
+export MAKEFLAGS='-j13'
+export CMAKE_PREFIX_PATH="/opt/qt6:$CMAKE_PREFIX_PATH"
 
-# Environment Variables
-export PATH="$PATH:/home/x/.dotnet/tools/"
-export PATH="$PATH:$(go env GOPATH)/bin"
-export PATH="$PATH:/usr/local/lib64/ruby/gems/3.2.0/bin"
-export QT_QPA_PLATFORMTHEME=qt5ct
-
-# Ruby Configuration
-export GEM_HOME=/usr/local/lib64/ruby/gems/3.2.0
-export GEM_PATH=/usr/local/lib64/ruby/gems/3.2.0
-
-# Aliases
+alias nano="micro"
 alias py="python3"
-alias bat="upower -i \$(upower -e | grep BAT) | grep -E 'state|percentage'"
-alias icanhazip="curl icanhazip.com"
-alias black="python3 -m black"
-alias nano='micro'
-alias ntp="ntpdate -b -u 0.gentoo.pool.ntp.org"
 
-# Functions
-runas() {
-    su -c "$*" x
+gtar() {
+  if [[ $# -ne 1 ]]; then
+    echo "gtar <URL-to-.tar[.gz|.xz|.bz2|.Z|.tgz]>" >&2
+    return 1
+  fi
+  cd /build/4_applications
+  local url=$1
+  local file=${url##*/}  
+  local dir
+
+ 
+  case $file in
+    *.tar.gz|*.tgz) dir=${file%%.tar.*} ;;
+    *.tar.bz2)       dir=${file%%.tar.bz2} ;;
+    *.tar.xz)        dir=${file%%.tar.xz} ;;
+    *.tar.Z)         dir=${file%%.tar.Z} ;;
+    *.tar)           dir=${file%%.tar} ;;
+    *)
+      echo "gtar: unrecognized archive suffix in '$file'" >&2
+      return 1
+      ;;
+  esac
+
+ 
+  wget --show-progress "$url"            || return $?
+  tar xf "$file"                        || return $?
+  cd "$dir"                             || {
+    echo "gtar: failed to cd into '$dir'" >&2
+    return 1
+  }
 }
+toggle() {
+    local target
+    local current
+    local cpu_path
+
+    if [[ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]]; then
+        current=$(< /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)
+    fi
+
+    if [[ "$current" == "performance" ]]; then
+        target="powersave"
+    else
+        target="performance"
+    fi
+
+    echo "Switching all CPUs to $target..."
+
+    for cpu_path in /sys/devices/system/cpu/cpu[0-9]*; do
+        if [[ -w "$cpu_path/cpufreq/scaling_governor" ]]; then
+            echo "$target" > "$cpu_path/cpufreq/scaling_governor"
+        fi
+    done
+
+    echo "Done."
+}
+
 
 normalize_version() {
     version="$1"
@@ -39,48 +82,35 @@ normalize_version() {
         echo "$numeric"
     fi
 }
-update() {
-    local sync=false
-    while [[ "$1" != "" ]]; do
-        case $1 in
-            -s|--sync)
-                sync=true
-                ;;
-            *)
-                echo "[ -s | --sync ]"
-                return 1
-                ;;
-        esac
-        shift
-    done
-
-    if [ "$sync" = true ]; then
-        emaint --auto sync || return 1
-
-    fi
-    emerge -auvDN @world || return 1
-    check_kernel_version
-}
 
 check_kernel_version() {
     running_version=$(uname -r | sed 's/-[^-]*$//')
     releases_json=$(curl -s https://kernel.org/releases.json) || { echo "Failed to fetch releases.json from kernel.org"; return 1; }
-    mainline_version=$(echo "$releases_json" | jq -r '.releases[] | select(.moniker=="mainline") | .version')
+    mainline_release=$(echo "$releases_json" | jq -r '[.releases[] | select(.moniker=="mainline")] | sort_by(.released.timestamp) | last')
+    mainline_version=$(echo "$mainline_release" | jq -r '.version')
     norm_running=$(normalize_version "$running_version")
     norm_mainline=$(normalize_version "$mainline_version")
     echo "Running kernel: $running_version (debug: $norm_running)"
     echo "Latest mainline: $mainline_version (debug: $norm_mainline)"
     if [[ "$norm_running" != "$norm_mainline" ]]; then
-        get_kernel "$mainline_version" "$releases_json"
-    else
-        echo " "
+                echo -n "Get the new kernel? (y/N): "
+        read response
+        case "$response" in
+        [yY][eE][sS]|[yY])
+            get_kernel "$mainline_version" "$releases_json"
+            ;;
+        *)
+            echo "Bye"
+            ;;
+                 esac
+        
     fi
 }
 
 get_kernel() {
     target_version="$1"
     releases_json="$2"
-    archive_url=$(echo "$releases_json" | jq -r '.releases[] | select(.moniker=="mainline") | .source')
+    archive_url=$(echo "$releases_json" | jq -r ".releases[] | select(.moniker==\"mainline\" and .version==\"$target_version\") | .source")
     archive_file=$(basename "$archive_url")
     echo "Getting the new kernel..."
     echo "Downloading: $archive_url"
@@ -102,9 +132,9 @@ get_kernel() {
 kernel_update() {
     cd /usr/src/linux
     mount /dev/nvme0n1p1 /boot
-    cp /home/x/kernel_config_p14s .config
+    cp /usr/src/kernel_conf_p14s .config
     make oldconfig
-    cp .config /home/x/kernel_config_p14s
+    cp .config  /usr/src/kernel_conf_p14s
     make -j13
     mv /boot/bzImage.efi /boot/bzImage.efi.old
     cp /usr/src/linux/arch/x86/boot/bzImage /boot/bzImage.efi
@@ -122,5 +152,54 @@ kernel_update() {
 
 
 
-# Plugins
-source /usr/share/zsh/site-functions/zsh-syntax-highlighting.zsh
+cont() {
+  local pid state user comm
+  local stopped_pids=()
+  local stopped_names=()
+
+  while read -r pid state user comm; do
+    if [[ $state == T ]]; then
+      stopped_pids+=("$pid")
+      stopped_names+=("$comm")
+    fi
+  done < <(ps -eo pid=,state=,user=,comm=)
+
+  if (( ${#stopped_pids[@]} == 0 )); then
+    echo "▶ No stopped processes"
+    return 0
+  fi
+
+  echo "Stopped PIDs: ${stopped_pids[@]}"
+
+  # loop over indices 1..N (zsh arrays are 1-based)
+  for (( i = 1; i <= ${#stopped_pids[@]}; i++ )); do
+    pid=${stopped_pids[i]}
+    name=${stopped_names[i]}
+
+    if kill -CONT "$pid" 2>/dev/null; then
+      echo "▶ Continued process $pid ($name)"
+    else
+      msg=$(kill -CONT "$pid" 2>&1)
+      echo "✖ Failed to continue $pid ($name): $msg"
+    fi
+  done
+}
+update_firefox(){
+    installed=$(/opt/firefox/firefox --version | awk '{print $3}')
+    latest=$(curl -s https://product-details.mozilla.org/1.0/firefox_versions.json | grep '"LATEST_FIREFOX_VERSION"' | cut -d '"' -f4)
+        if [[ "$installed" == "$latest" ]]; then
+                echo "Already up to date"
+        else
+                echo "Updating..."
+                mkdir /tmp/upd_ff
+                cd /tmp/upd_ff
+                wget -O ff.tar.xz "https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US" 
+                tar -xf ff.tar.xz -C /opt/
+                cd -
+                rm -rf /tmp/upd_ff
+        fi
+        echo "Done"
+}
+
+source /home/x/work/0/bin/activate
+source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh 
