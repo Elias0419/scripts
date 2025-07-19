@@ -19,7 +19,7 @@ alias rcache="sh -c 'echo 3 > /proc/sys/vm/drop_caches'"
 alias clip="xclip -sel clip"
 alias ls='ls --color=auto'
 alias grep='grep --color=auto'
-
+alias checkadv="/usr/bin/check_lfs_blfs_advisories.sh"
 gtar() {
   if [[ $# -ne 1 ]]; then
     echo "Usage: gtar <URL-to-.tar[.gz|.xz|.bz2|.Z|.tgz]>" >&2
@@ -242,7 +242,7 @@ cremount () {
     print -n "$dev" > $drv/bind
 }
 
-
+alias update="update_firefox && echo '' && checkadv && echo '' && check_kernel_version"
 source /home/x/work/0/bin/activate
 source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh 
 
