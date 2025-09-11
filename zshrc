@@ -6,11 +6,11 @@ SAVEHIST=10000
 setopt SHARE_HISTORY
 
 export PATH=$PATH:/opt:/usr/go/bin:/usr/local/bin:/usr/bin/maven/bin:/opt/python3.12/bin
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64:/usr/lib64/R/lib/
 export PKG_CONFIG_PATH="/usr/lib64/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
 export MAKEFLAGS='-j13'
 export CMAKE_PREFIX_PATH="/opt/qt6:$CMAKE_PREFIX_PATH"
-export CURL_CA_BUNDLE=/etc/ssl/certs/ca-bundle.crt
+#export CURL_CA_BUNDLE=/etc/ssl/certs/ca-bundle.crt
 alias bat="upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep percentage"
 alias nano="micro"
 alias py="python3"
@@ -121,6 +121,7 @@ get_kernel() {
     archive_file=$(basename "$archive_url")
     echo "Getting the new kernel..."
     echo "Downloading: $archive_url"
+    cd /tmp
     curl -LO "$archive_url" || { echo "Download failed"; return 1; }
     tar -xf "$archive_file" -C /usr/src || { echo "Extraction failed"; return 1; }
 
@@ -194,6 +195,7 @@ cont() {
 update_firefox(){
     installed=$(/opt/firefox/firefox --version | awk '{print $3}')
     latest=$(curl -s https://product-details.mozilla.org/1.0/firefox_versions.json | grep '"LATEST_FIREFOX_VERSION"' | cut -d '"' -f4)
+
 	if [[ "$installed" == "$latest" ]]; then
 		echo "Installed:"
 		echo $installed
@@ -246,3 +248,5 @@ alias update="update_firefox && echo '' && checkadv && echo '' && check_kernel_v
 source /home/x/work/0/bin/activate
 source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh 
 
+
+. "/home/x/.local/share/../bin/env"
